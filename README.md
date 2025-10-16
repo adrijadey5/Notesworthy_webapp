@@ -21,5 +21,9 @@ This project solves that by providing a **simple, AI-assisted note-taking app** 
 - 💡 Minimal and responsive UI built with TailwindCSS  
 - 🚀 Easily deployable through Firebase Studio or locally
 
+DEPLOYMENT LINK: https://notesworthy-webapp.vercel.app/
+<img width="1878" height="816" alt="Screenshot 2025-10-16 231221" src="https://github.com/user-attachments/assets/ceb018d3-7d93-404d-bd96-7f8f000659dc" />
+demo screenshot
+
 
 

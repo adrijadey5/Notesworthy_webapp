@@ -21,20 +21,11 @@ const areAllVarsDefined =
     firebaseConfig.messagingSenderId &&
     firebaseConfig.appId;
 
-let app;
-if (areAllVarsDefined) {
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-} else {
-    // In a real app, you might want to throw an error or have a fallback.
-    // For this example, we'll log a warning.
-    console.warn("Firebase config is incomplete. Firebase will not be initialized.");
-}
+const app = areAllVarsDefined ? (!getApps().length ? initializeApp(firebaseConfig) : getApp()) : undefined;
+const auth = app ? getAuth(app) : ({} as any);
+const firestore = app ? getFirestore(app) : ({} as any);
 
-
-const auth = areAllVarsDefined ? getAuth(app) : ({} as any);
-const firestore = areAllVarsDefined ? getFirestore(app) : ({} as any);
-
-if (process.env.NODE_ENV === 'development' && areAllVarsDefined) {
+if (process.env.NODE_ENV === 'development' && app) {
   // To run with emulators, you need to run:
   // firebase emulators:start
   // Uncomment the lines below to use the emulators
@@ -44,6 +35,8 @@ if (process.env.NODE_ENV === 'development' && areAllVarsDefined) {
   } catch (error) {
     console.error("Error connecting to Firebase emulators. Make sure they are running.", error);
   }
+} else if (!app) {
+    console.warn("Firebase config is incomplete. Firebase will not be initialized.");
 }
 
 export { app, auth, firestore };

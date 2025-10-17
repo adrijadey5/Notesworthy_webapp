@@ -1,62 +1,174 @@
 {
   "entities": {
-    "user": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
-      "description": "A user of the application.",
       "type": "object",
+      "description": "Represents a user of the Noteworthy application.",
       "properties": {
-        "uid": {
+        "id": {
           "type": "string",
-          "description": "The user's unique ID."
+          "description": "Unique identifier for the User entity."
         },
         "email": {
           "type": "string",
-          "format": "email",
-          "description": "The user's email address."
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "The users username."
         }
       },
-      "required": ["uid", "email"]
+      "required": [
+        "id",
+        "email",
+        "username"
+      ]
     },
-    "note": {
+    "Note": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Note",
-      "description": "A note created by a user.",
       "type": "object",
+      "description": "Represents a note created by a user.",
       "properties": {
-        "title": {
+        "id": {
           "type": "string",
-          "description": "The title of the note."
-        },
-        "content": {
-          "type": "string",
-          "description": "The content of the note."
+          "description": "Unique identifier for the Note entity."
         },
         "userId": {
           "type": "string",
-          "description": "The ID of the user who created the note."
+          "description": "Reference to User. (Relationship: User 1:N Note)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the note."
+        },
+        "content": {
+          "type": "string",
+          "description": "Content of the note."
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "The date and time the note was created."
+          "description": "Timestamp indicating when the note was created.",
+          "format": "date-time"
         },
         "updatedAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "The date and time the note was last updated."
+          "description": "Timestamp indicating when the note was last updated.",
+          "format": "date-time"
         }
       },
-      "required": ["title", "content", "userId", "createdAt", "updatedAt"]
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "content",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Summary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Summary",
+      "type": "object",
+      "description": "Represents a summary of one or more notes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Summary entity."
+        },
+        "noteId": {
+          "type": "string",
+          "description": "Reference to Note. (Relationship: Note 1:N Summary)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Summarized content of the note."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the summary was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "content",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["email"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/notes/{noteId}": {
-      "schema": {
-        "$ref": "#/entities/note"
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. The 'userId' parameter corresponds to the Firebase Authentication UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching the Firebase Auth UID."
+            }
+          ]
+        }
       },
-      "description": "A collection of notes."
-    }
+      {
+        "path": "/users/{userId}/notes/{noteId}",
+        "definition": {
+          "entityName": "Note",
+          "schema": {
+            "$ref": "#/backend/entities/Note"
+          },
+          "description": "Stores notes created by a specific user.  The 'userId' parameter ensures that only the authenticated user can access their own notes.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching the Firebase Auth UID."
+            },
+            {
+              "name": "noteId",
+              "description": "The unique identifier for the note."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/notes/{noteId}/summaries/{summaryId}",
+        "definition": {
+          "entityName": "Summary",
+          "schema": {
+            "$ref": "#/backend/entities/Summary"
+          },
+          "description": "Stores summaries related to a specific note. This hierarchical structure maintains a clear relationship between users, notes, and their summaries, ensuring data integrity and simplified access control based on the user's ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching the Firebase Auth UID."
+            },
+            {
+              "name": "noteId",
+              "description": "The unique identifier for the note."
+            },
+            {
+              "name": "summaryId",
+              "description": "The unique identifier for the summary."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to secure user data and notes, focusing on path-based ownership for simplicity and strong security. Each user has a dedicated space for their notes, facilitating straightforward security rules based on the `request.auth.uid`. This approach eliminates the need for complex queries or data joins in security rules, enhancing performance and security. The use of hierarchical paths (`/users/{userId}/notes/{noteId}/summaries/{summaryId}`) ensures clear ownership and simplifies data access patterns.\n\n**Authorization Independence:** Authorization independence is achieved by using path-based ownership. Specifically, the notes and summaries exist under the user's document. Therefore access control is determined by the path. No `get()` calls are needed in security rules, which enforces atomic operations and improves debugging.\n\n**QAPs:** The structure supports secure `list` operations. Since notes are stored under each user's document, listing notes only requires knowing the `userId`. This enables secure listing without exposing data from other users.\n"
   }
 }

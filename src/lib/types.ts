@@ -5,6 +5,7 @@ export interface Note {
   title: string;
   content: string;
   userId: string;
+  category?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

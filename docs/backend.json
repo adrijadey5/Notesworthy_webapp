@@ -48,6 +48,10 @@
           "type": "string",
           "description": "The content of the note."
         },
+        "category": {
+          "type": "string",
+          "description": "The category of the note."
+        },
         "createdAt": {
           "type": "string",
           "description": "The date and time the note was created.",
@@ -71,8 +75,8 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "google.com",
+      "password"
     ]
   },
   "firestore": {

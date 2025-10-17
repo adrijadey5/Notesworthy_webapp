@@ -7,6 +7,13 @@ import { FilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import DashboardLoading from './loading';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useMemo } from 'react';
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -21,6 +28,21 @@ export default function DashboardPage() {
   }, [firestore, user]);
 
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);
+
+  const groupedNotes = useMemo(() => {
+    if (!notes) return {};
+    return notes.reduce((acc, note) => {
+      const category = note.category || 'Uncategorized';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(note);
+      return acc;
+    }, {} as Record<string, Note[]>);
+  }, [notes]);
+
+  const categories = useMemo(() => Object.keys(groupedNotes).sort(), [groupedNotes]);
+
 
   if (isLoading) {
     return <DashboardLoading />;
@@ -38,11 +60,24 @@ export default function DashboardPage() {
         </div>
     );
   }
+  
+  const defaultOpenCategories = categories.length > 0 ? [categories[0]] : [];
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6 font-headline">My Notes</h1>
-      <NoteList notes={notes} />
+      <Accordion type="multiple" defaultValue={defaultOpenCategories} className="w-full">
+        {categories.map(category => (
+          <AccordionItem value={category} key={category}>
+            <AccordionTrigger className="text-xl font-semibold font-headline capitalize">
+              {category}
+            </AccordionTrigger>
+            <AccordionContent>
+               <NoteList notes={groupedNotes[category]} />
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </div>
   );
 }

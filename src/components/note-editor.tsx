@@ -30,6 +30,7 @@ import {
   deleteDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { Label } from './ui/label';
 
 export function NoteEditor({ note }: { note: Note }) {
   const router = useRouter();
@@ -41,13 +42,15 @@ export function NoteEditor({ note }: { note: Note }) {
     defaultValues: {
       title: note.title,
       content: note.content,
+      category: note.category || '',
     },
   });
 
   useEffect(() => {
     reset({
       title: note.title,
-      content: note.content
+      content: note.content,
+      category: note.category || '',
     });
   }, [note, reset]);
 
@@ -92,7 +95,7 @@ export function NoteEditor({ note }: { note: Note }) {
     });
   };
 
-  async function onSave(data: { title: string; content: string }) {
+  async function onSave(data: { title: string; content: string, category: string }) {
      if (!user || !firestore) {
       toast({
         variant: 'destructive',
@@ -210,6 +213,17 @@ export function NoteEditor({ note }: { note: Note }) {
           placeholder="Note title"
           className="text-2xl font-bold h-14 border-0 shadow-none focus-visible:ring-0 px-0"
         />
+
+        <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              {...register('category')}
+              placeholder="e.g. Work, Personal, Ideas..."
+              className="border-0 shadow-none focus-visible:ring-0 px-0"
+            />
+        </div>
+
         <Textarea
           {...register('content')}
           placeholder="Start writing your note here..."

@@ -2,87 +2,102 @@
  * @fileoverview Firestore Security Rules for the Noteworthy application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for notes and summaries.
- * Only the authenticated user who owns a given note or summary can read,
- * create, update, or delete it.  All data is nested under `/users/{userId}`,
- * ensuring that access control is primarily path-based and relies on the
- * Firebase Authentication UID for identity verification.
+ * This ruleset enforces a strict user-ownership model. Each user can only
+ * access their own data, and data is segregated by user ID.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. The 'userId' must match the Firebase Auth UID.
- * - /users/{userId}/notes/{noteId}: Stores notes created by the specified user.
- * - /users/{userId}/notes/{noteId}/summaries/{summaryId}: Stores summaries related to a specific note.
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/notes/{noteId}: Stores notes created by a specific user.
  *
  * Key Security Decisions:
- * - User listing is implicitly disallowed. Rules only allow access to individual
- *   user documents based on their UID.
- * - Authorization Independence: Rules use path-based ownership; no 'get()' calls are needed.
+ * - Users can only access their own user document.
+ * - Users can only access notes they have created.
+ * - Listing notes is restricted to the owning user.
+ * - No public data or roles are implemented.
+ *
+ * Denormalization for Authorization:
+ * The `userId` is included in the path for notes, and this matches the
+ * `userId` field within the note document itself. This enables path-based
+ * authorization and avoids the need for complex `get()` calls to determine
+ * ownership.
+ *
+ * Structural Segregation:
+ * Private user data and notes are stored under the `/users/{userId}` path,
+ * ensuring that only the authenticated user can access this information.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles.
+     * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user with matching UID can create their profile.
-     * @allow (get, update, delete) - Authenticated user with matching UID can access and modify their profile.
-     * @deny (create) - If the user ID in the request does not match the authenticated user's ID.
-     * @deny (get, update, delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with UID 'user_abc' can create their own user document at /users/user_abc.
+     * @allow (get) - User with UID 'user_abc' can get their own user document at /users/user_abc.
+     * @allow (update) - User with UID 'user_abc' can update their own user document at /users/user_abc.
+     * @allow (delete) - User with UID 'user_abc' can delete their own user document at /users/user_abc.
+     * @deny (create) - User with UID 'user_xyz' cannot create a user document at /users/user_abc.
+     * @deny (get) - User with UID 'user_xyz' cannot get the user document at /users/user_abc.
+     * @deny (update) - User with UID 'user_xyz' cannot update the user document at /users/user_abc.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete the user document at /users/user_abc.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // User listing is not allowed.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces user-ownership for notes.
+     * @description Controls access to notes created by a user.
      * @path /users/{userId}/notes/{noteId}
-     * @allow (create) - Authenticated user with matching UID can create a note under their profile.
-     * @allow (get, list, update, delete) - Authenticated user with matching UID can access and modify notes under their profile.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get, update, delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with UID 'user_abc' can create a note under /users/user_abc/notes/{noteId}.
+     * @allow (get) - User with UID 'user_abc' can get a note under /users/user_abc/notes/{noteId}.
+     * @allow (update) - User with UID 'user_abc' can update a note under /users/user_abc/notes/{noteId}.
+     * @allow (delete) - User with UID 'user_abc' can delete a note under /users/user_abc/notes/{noteId}.
+     * @deny (create) - User with UID 'user_xyz' cannot create a note under /users/user_abc/notes/{noteId}.
+     * @deny (get) - User with UID 'user_xyz' cannot get a note under /users/user_abc/notes/{noteId}.
+     * @deny (update) - User with UID 'user_xyz' cannot update a note under /users/user_abc/notes/{noteId}.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete a note under /users/user_abc/notes/{noteId}.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/notes/{noteId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource.data.userId == userId && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // ---- Helper functions ----
+
+    /**
+     * @description Checks if the request is authenticated.
+     * @return {boolean} True if the request is authenticated, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description Enforces user-ownership for summaries.
-     * @path /users/{userId}/notes/{noteId}/summaries/{summaryId}
-     * @allow (create) - Authenticated user with matching UID can create a summary under their note.
-     * @allow (get, list, update, delete) - Authenticated user with matching UID can access and modify summaries under their note.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get, update, delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for all operations.
+     * @description Checks if the authenticated user's ID matches the provided userId.
+     * @param {string} userId The user ID to compare against.
+     * @return {boolean} True if the user is the owner, false otherwise.
      */
-    match /users/{userId}/notes/{noteId}/summaries/{summaryId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+     /**
+      * @description Checks if the authenticated user is the owner of an existing document.
+      *              This function combines the ownership check with a document existence check.
+      * @param {string} userId The user ID to compare against.
+      * @return {boolean} True if the user is the owner and the document exists, false otherwise.
+      */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
   }
 }

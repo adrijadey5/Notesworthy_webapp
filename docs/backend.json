@@ -4,33 +4,33 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the Noteworthy application.",
+      "description": "Represents a user account in the Noteworthy application.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the User entity."
         },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
         "username": {
           "type": "string",
-          "description": "The users username."
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
         }
       },
       "required": [
         "id",
-        "email",
-        "username"
+        "username",
+        "email"
       ]
     },
     "Note": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Note",
       "type": "object",
-      "description": "Represents a note created by a user.",
+      "description": "Represents a single note created by a user.",
       "properties": {
         "id": {
           "type": "string",
@@ -38,24 +38,24 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Note)"
+          "description": "Reference to the User who created the note. (Relationship: User 1:N Note)"
         },
         "title": {
           "type": "string",
-          "description": "Title of the note."
+          "description": "The title of the note."
         },
         "content": {
           "type": "string",
-          "description": "Content of the note."
+          "description": "The content of the note."
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp indicating when the note was created.",
+          "description": "The date and time the note was created.",
           "format": "date-time"
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp indicating when the note was last updated.",
+          "description": "The date and time the note was last updated.",
           "format": "date-time"
         }
       },
@@ -67,43 +67,12 @@
         "createdAt",
         "updatedAt"
       ]
-    },
-    "Summary": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Summary",
-      "type": "object",
-      "description": "Represents a summary of one or more notes.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Summary entity."
-        },
-        "noteId": {
-          "type": "string",
-          "description": "Reference to Note. (Relationship: Note 1:N Summary)"
-        },
-        "content": {
-          "type": "string",
-          "description": "Summarized content of the note."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the summary was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "noteId",
-        "content",
-        "createdAt"
-      ]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
@@ -115,11 +84,11 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. The 'userId' parameter corresponds to the Firebase Authentication UID.",
+          "description": "Stores user profile information.  Authorization is based on path (`request.auth.uid == userId`).",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
+              "description": "The unique identifier for the user."
             }
           ]
         }
@@ -131,44 +100,20 @@
           "schema": {
             "$ref": "#/backend/entities/Note"
           },
-          "description": "Stores notes created by a specific user.  The 'userId' parameter ensures that only the authenticated user can access their own notes.",
+          "description": "Stores notes created by users. Authorization is based on path (`request.auth.uid == userId`).",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
+              "description": "The unique identifier for the user."
             },
             {
               "name": "noteId",
               "description": "The unique identifier for the note."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/notes/{noteId}/summaries/{summaryId}",
-        "definition": {
-          "entityName": "Summary",
-          "schema": {
-            "$ref": "#/backend/entities/Summary"
-          },
-          "description": "Stores summaries related to a specific note. This hierarchical structure maintains a clear relationship between users, notes, and their summaries, ensuring data integrity and simplified access control based on the user's ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "noteId",
-              "description": "The unique identifier for the note."
-            },
-            {
-              "name": "summaryId",
-              "description": "The unique identifier for the summary."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to secure user data and notes, focusing on path-based ownership for simplicity and strong security. Each user has a dedicated space for their notes, facilitating straightforward security rules based on the `request.auth.uid`. This approach eliminates the need for complex queries or data joins in security rules, enhancing performance and security. The use of hierarchical paths (`/users/{userId}/notes/{noteId}/summaries/{summaryId}`) ensures clear ownership and simplifies data access patterns.\n\n**Authorization Independence:** Authorization independence is achieved by using path-based ownership. Specifically, the notes and summaries exist under the user's document. Therefore access control is determined by the path. No `get()` calls are needed in security rules, which enforces atomic operations and improves debugging.\n\n**QAPs:** The structure supports secure `list` operations. Since notes are stored under each user's document, listing notes only requires knowing the `userId`. This enables secure listing without exposing data from other users.\n"
+    "reasoning": "The Firestore structure is designed to provide a secure and scalable solution for the Noteworthy application, focusing on authorization independence and clear data ownership. User data is stored under `/users/{userId}`, ensuring private access. Notes are stored as subcollections under each user (`/users/{userId}/notes/{noteId}`), clearly establishing the user-note relationship. This design leverages path-based ownership, simplifying security rules and enabling efficient data retrieval.\n\nThe structure achieves Authorization Independence by ensuring that each note's access control is determined solely by its path. Since notes are stored as subcollections under the user's document, access is implicitly granted only to the authenticated user who owns that path (`request.auth.uid == userId`). This eliminates the need for `get()` calls in security rules, which is crucial for maintaining atomicity in transactions and batches.\n\nTo support QAPs (Rules are not Filters), the notes are segregated by user ID. This means listing notes is always scoped to a specific user's notes, enabling secure `list` operations without needing to filter based on data within the documents. The path `/users/{userId}/notes` inherently limits access to only the notes owned by the specified user."
   }
 }

@@ -5,7 +5,7 @@ import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { NoteEditor } from '@/components/note-editor';
 import type { Note } from '@/lib/types';
 import NoteLoading from '../loading';
-import { useEffect, useMemo, use } from 'react';
+import { useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 
 
@@ -34,14 +34,6 @@ export default function NotePage({ params }: { params: { noteId: string } }) {
   }), [user]);
 
 
-  // If the note doesn't exist and it's not a new note, redirect.
-  useEffect(() => {
-    if (!isLoading && !note && !isNewNote) {
-      router.push('/dashboard');
-    }
-  }, [isLoading, note, isNewNote, router]);
-
-
   if (isLoading) {
     return <NoteLoading />;
   }
@@ -52,8 +44,15 @@ export default function NotePage({ params }: { params: { noteId: string } }) {
   
   const currentNote = isNewNote ? newNoteTemplate : note;
 
-  if (!currentNote) {
+  if (!currentNote && !isNewNote) {
+     // If still loading or if note is null for an existing ID, show loading.
+     // This also gracefully handles the moment after creation before the new doc is fetched.
      return <NoteLoading />;
+  }
+
+  if (!currentNote) {
+    // Should only happen for 'new' if newNoteTemplate isn't ready, which is unlikely.
+    return null;
   }
 
   return (

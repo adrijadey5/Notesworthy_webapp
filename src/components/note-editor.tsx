@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import React, { useState, useRef, useEffect, useTransition, useMemo } from 'react';
-import { getSummary } from '@/lib/actions';
+import React, { useState, useEffect, useTransition, useMemo } from 'react';
+import { summarizeNote } from '@/ai/flows/summarize-note';
 import {
   useFirestore,
   useUser,
@@ -30,7 +30,7 @@ import {
   addDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, addDoc } from 'firebase/firestore';
 
 export function NoteEditor({ note }: { note: Note }) {
   const router = useRouter();
@@ -84,8 +84,12 @@ export function NoteEditor({ note }: { note: Note }) {
     setSummaryDialogOpen(true);
     setSelection(null);
     startSummaryTransition(async () => {
-      const result = await getSummary(selectedText);
-      setSummary(result.summary);
+      try {
+        const result = await summarizeNote({ text: selectedText });
+        setSummary(result.summary);
+      } catch (e) {
+        setSummary('Could not generate a summary.');
+      }
     });
   };
 
@@ -110,17 +114,14 @@ export function NoteEditor({ note }: { note: Note }) {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         };
-        const docRefPromise = addDocumentNonBlocking(notesCollection, newNoteData);
+        // Use awaited addDoc for new notes to navigate after completion
+        const docRef = await addDoc(notesCollection, newNoteData);
         toast({
           title: 'Note Created',
           description: 'Your new note has been saved.',
         });
-        // We can optimistically navigate, and then get the real ID
-        router.push(`/dashboard`);
-        const docRef = await docRefPromise;
-        if(docRef) {
-          router.push(`/notes/${docRef.id}`);
-        }
+        router.push(`/notes/${docRef.id}`);
+        router.refresh();
 
       } else {
         const noteRef = doc(firestore, `users/${user.uid}/notes`, note.id);
@@ -133,8 +134,9 @@ export function NoteEditor({ note }: { note: Note }) {
           title: 'Note Saved',
           description: 'Your changes have been saved successfully.',
         });
+        // Stay on the page, just refresh data
+        router.refresh();
       }
-      router.refresh();
       
     } catch (error) {
        toast({

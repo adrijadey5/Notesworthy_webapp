@@ -27,7 +27,6 @@ import {
   useFirestore,
   useUser,
   setDocumentNonBlocking,
-  addDocumentNonBlocking,
   deleteDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc, serverTimestamp, addDoc } from 'firebase/firestore';
@@ -39,10 +38,10 @@ export function NoteEditor({ note }: { note: Note }) {
   const firestore = useFirestore();
 
   const { register, handleSubmit, formState, reset } = useForm({
-    defaultValues: useMemo(() => ({
+    defaultValues: {
       title: note.title,
       content: note.content,
-    }), [note]),
+    },
   });
 
   useEffect(() => {
@@ -120,8 +119,7 @@ export function NoteEditor({ note }: { note: Note }) {
           title: 'Note Created',
           description: 'Your new note has been saved.',
         });
-        router.push(`/notes/${docRef.id}`);
-        router.refresh();
+        router.push(`/dashboard`);
 
       } else {
         const noteRef = doc(firestore, `users/${user.uid}/notes`, note.id);
@@ -134,7 +132,7 @@ export function NoteEditor({ note }: { note: Note }) {
           title: 'Note Saved',
           description: 'Your changes have been saved successfully.',
         });
-        // Stay on the page, just refresh data
+        // Form is reset via useEffect, router.refresh() will re-fetch data.
         router.refresh();
       }
       

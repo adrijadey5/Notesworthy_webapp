@@ -1,7 +1,8 @@
 'use client';
 
 import { User } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { useAuth } from '@/hooks/use-auth';
+import { getAuth } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -17,7 +18,7 @@ import { LogOut } from 'lucide-react';
 
 export function UserButton({ user }: { user: User }) {
   const router = useRouter();
-  const auth = useAuth();
+  const auth = getAuth();
 
   const handleSignOut = async () => {
     await auth.signOut();

@@ -1,22 +1,29 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { User } from 'firebase/auth';
-import { useUser } from '@/firebase'; 
+import { User, getAuth } from 'firebase/auth';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
+  const auth = getAuth();
+
+  const signOut = async () => {
+    await auth.signOut();
+  };
 
   if (isUserLoading) {
     return (
@@ -27,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading: isUserLoading }}>
+    <AuthContext.Provider value={{ user, loading: isUserLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

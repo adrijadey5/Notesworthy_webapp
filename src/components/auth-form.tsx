@@ -64,11 +64,27 @@ export default function AuthForm({ mode }: AuthFormProps) {
       router.push(redirectUrl);
 
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
+        if (error.code === 'auth/email-already-in-use') {
+            toast({
+              variant: 'destructive',
+              title: 'Email Already Registered',
+              description: (
+                <>
+                  This email is already in use. Please{' '}
+                  <Link href="/login" className="underline font-bold">
+                    log in
+                  </Link>{' '}
+                  instead.
+                </>
+              ),
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Failed',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        }
     } finally {
       setLoading(false);
     }

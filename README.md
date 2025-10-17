@@ -1,8 +1,10 @@
 #  Noteworthy – Notes App
 
-## Problem Statement
-Users often struggle to organize, recall, and summarize information efficiently.  
-This project solves that by providing a **simple, AI-assisted note-taking app** that stores notes securely and syncs across devices.
+Problem Statement:
+Students and professionals frequently need to access their notes across multiple devices. Existing applications may not provide seamless synchronization or sufficient privacy.
+
+Objective:
+To develop a secure, cloud-based Notes App that allows users to register, log in, and manage their notes from any device. The system should support CRUD (Create, Read, Update, Delete) operations, real-time syncing, and secure authentication using Firebase or similar backend.
 
 ---
 
@@ -11,7 +13,7 @@ This project solves that by providing a **simple, AI-assisted note-taking app** 
 - **Styling:** Tailwind CSS
 - **Backend:** Firebase (Auth + Firestore)
 - **Language:** TypeScript
-- **Deployment:** Firebase Hosting
+- **Deployment:** Firebase Hosting and Vercel 
 
 ## ✨ Features
 - 🔐 Secure user login with Firebase Authentication  

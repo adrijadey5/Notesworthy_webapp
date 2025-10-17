@@ -8,7 +8,7 @@ To develop a secure, cloud-based Notes App that allows users to register, log in
 
 ---
 
-## ⚙️ Tech Stack
+## Tech Stack
 - **Frontend:** Next.js
 - **Styling:** Tailwind CSS
 - **Backend:** Firebase (Auth + Firestore)
@@ -22,6 +22,7 @@ To develop a secure, cloud-based Notes App that allows users to register, log in
 - ☁️ Cloud synchronization via Firestore  
 - 💡 Minimal and responsive UI built with TailwindCSS  
 - 🚀 Easily deployable through Firebase Studio or locally
+- A fun toggle theme between dark and light modes
 
 DEPLOYMENT LINK: https://notesworthy-webapp.vercel.app/
 <img width="1883" height="788" alt="image" src="https://github.com/user-attachments/assets/25a613b2-a047-4f38-be6b-cd58963887f3" />
@@ -29,6 +30,8 @@ DEPLOYMENT LINK: https://notesworthy-webapp.vercel.app/
 <img width="1910" height="924" alt="Screenshot 2025-10-17 232820" src="https://github.com/user-attachments/assets/505b8bba-d193-4b78-b9c6-4387ef8ed79f" />
 <img width="1897" height="910" alt="image" src="https://github.com/user-attachments/assets/99fcb191-a2e7-4d03-9a13-794728a7f288" />
 <img width="1904" height="922" alt="Screenshot 2025-10-17 232800" src="https://github.com/user-attachments/assets/6794786d-5df2-4c6c-9055-549a45cac170" />
+<img width="1912" height="931" alt="image" src="https://github.com/user-attachments/assets/1d95bcc0-e385-48ef-81ae-4e0c1704d7cb" />
+
 
 screenshots of web app
 

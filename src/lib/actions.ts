@@ -7,22 +7,13 @@ import { initializeFirebase } from '@/firebase/index.server';
 import { Note } from './types';
 import { summarizeNote } from '@/ai/flows/summarize-note';
 
-async function getAuthenticatedAppForUser() {
+
+export async function saveNote(data: FormData) {
   const { auth, firestore } = initializeFirebase();
   const user = auth.currentUser;
   if (!user) {
-    return null;
-  }
-  return { user, firestore };
-}
-
-
-export async function saveNote(data: FormData) {
-  const app = await getAuthenticatedAppForUser();
-  if (!app) {
     throw new Error('You must be logged in to save a note.');
   }
-  const { user, firestore } = app;
 
   const { noteId, title, content } = {
     noteId: data.get('noteId') as string | null,
@@ -60,11 +51,11 @@ export async function saveNote(data: FormData) {
 }
 
 export async function deleteNote(noteId: string) {
-    const app = await getAuthenticatedAppForUser();
-    if (!app) {
+    const { auth, firestore } = initializeFirebase();
+    const user = auth.currentUser;
+    if (!user) {
       throw new Error('You must be logged in to delete a note.');
     }
-    const { user, firestore } = app;
   
     const noteRef = doc(firestore, `users/${user.uid}/notes`, noteId);
     const noteSnap = await getDoc(noteRef);

@@ -1,40 +1,63 @@
-import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
+'use client';
+
+import { doc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { NoteEditor } from '@/components/note-editor';
 import type { Note } from '@/lib/types';
+import NoteLoading from '../loading';
+import { useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
-async function getNote(noteId: string): Promise<Note | null> {
-  if (noteId === 'new') {
-    return {
+
+export default function NotePage({ params }: { params: { noteId: string } }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
+
+  const isNewNote = params.noteId === 'new';
+
+  const noteRef = useMemoFirebase(() => {
+    if (isNewNote || !user) return null;
+    return doc(firestore, `users/${user.uid}/notes`, params.noteId);
+  }, [firestore, user, params.noteId, isNewNote]);
+
+  const { data: note, isLoading, error } = useDoc<Note>(noteRef);
+
+  const newNoteTemplate: Note = useMemo(() => ({
       id: 'new',
       title: '',
       content: '',
-      userId: '',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    } as unknown as Note;
+      userId: user?.uid || '',
+      createdAt: serverTimestamp() as any, // Will be replaced by server
+      updatedAt: serverTimestamp() as any, // Will be replaced by server
+  }), [user]);
+
+
+  // If the note doesn't exist and it's not a new note, redirect.
+  useEffect(() => {
+    if (!isLoading && !note && !isNewNote) {
+      router.push('/dashboard');
+    }
+  }, [isLoading, note, isNewNote, router]);
+
+
+  if (isLoading) {
+    return <NoteLoading />;
   }
 
-  const noteRef = doc(firestore, 'notes', noteId);
-  const noteSnap = await getDoc(noteRef);
-
-  if (!noteSnap.exists()) {
-    return null;
+  if (error) {
+    return <div>Error loading note.</div>;
   }
+  
+  const currentNote = isNewNote ? newNoteTemplate : note;
 
-  return { id: noteSnap.id, ...noteSnap.data() } as Note;
-}
-
-export default async function NotePage({ params }: { params: { noteId: string } }) {
-  const note = await getNote(params.noteId);
-
-  if (!note) {
-    return <div>Note not found.</div>;
+  if (!currentNote) {
+     return <NoteLoading />;
   }
 
   return (
     <div className="w-full h-full flex flex-col">
-      <NoteEditor note={note} />
+      <NoteEditor note={currentNote} />
     </div>
   );
 }

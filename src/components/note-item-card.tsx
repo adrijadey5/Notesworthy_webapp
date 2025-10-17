@@ -2,9 +2,14 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Note } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 
 export function NoteItemCard({ note }: { note: Note }) {
-  const date = note.updatedAt.toDate();
+  // Firestore Timestamps can be either on the server or client
+  const date = note.updatedAt instanceof Timestamp 
+    ? note.updatedAt.toDate() 
+    : new Date();
+    
   const formattedDate = formatDistanceToNow(date, { addSuffix: true });
 
   return (

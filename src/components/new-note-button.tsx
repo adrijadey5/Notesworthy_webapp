@@ -2,28 +2,41 @@
 
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { auth, firestore } from '@/lib/firebase';
+import { collection, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { FilePlus, Loader2 } from 'lucide-react';
 
 export function NewNoteButton() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   const handleCreateNote = () => {
     startTransition(async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!user || !firestore) return;
 
-      const docRef = await addDoc(collection(firestore, 'notes'), {
+      const newNote = {
         title: 'Untitled Note',
         content: '',
         userId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
-      router.push(`/notes/${docRef.id}`);
+      };
+
+      const notesCollection = collection(firestore, `users/${user.uid}/notes`);
+      const docRefPromise = addDocumentNonBlocking(notesCollection, newNote);
+      
+      // We don't need to await the promise to get the ID, we can navigate optimistically
+      router.push(`/notes/new`);
+      
+      // When the write is confirmed, we can get the real ID and navigate
+      const docRef = await docRefPromise;
+      if (docRef) {
+        router.push(`/notes/${docRef.id}`);
+      }
+
       router.refresh();
     });
   };

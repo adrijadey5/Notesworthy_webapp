@@ -1,8 +1,7 @@
 'use client';
 
 import { User } from 'firebase/auth';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -14,14 +13,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export function UserButton({ user }: { user: User }) {
   const router = useRouter();
+  const auth = useAuth();
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    await fetch('/api/logout', { method: 'POST' });
+    await auth.signOut();
     router.push('/login');
   };
 

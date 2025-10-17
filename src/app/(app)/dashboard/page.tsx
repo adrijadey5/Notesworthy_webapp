@@ -1,28 +1,32 @@
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { auth, firestore } from '@/lib/firebase';
+'use client';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import type { Note } from '@/lib/types';
 import NoteList from '@/components/note-list';
 import { FilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import DashboardLoading from './loading';
 
-async function getNotes(userId: string): Promise<Note[]> {
-  const notesCollection = collection(firestore, 'notes');
-  const q = query(notesCollection, where('userId', '==', userId), orderBy('updatedAt', 'desc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Note[];
-}
+export default function DashboardPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-export default async function DashboardPage() {
-  const user = auth.currentUser;
-  if (!user) return null;
+  const notesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/notes`),
+      orderBy('updatedAt', 'desc')
+    );
+  }, [firestore, user]);
 
-  const notes = await getNotes(user.uid);
+  const { data: notes, isLoading } = useCollection<Note>(notesQuery);
 
-  if (notes.length === 0) {
+  if (isLoading) {
+    return <DashboardLoading />;
+  }
+
+  if (!notes || notes.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8 border-2 border-dashed rounded-xl">
             <FilePlus className="w-16 h-16 text-muted-foreground mb-4"/>

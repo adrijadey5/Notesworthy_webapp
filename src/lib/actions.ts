@@ -2,28 +2,39 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { auth, firestore } from '@/lib/firebase';
 import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase/index.server';
 import { Note } from './types';
 import { summarizeNote } from '@/ai/flows/summarize-note';
 
+async function getAuthenticatedAppForUser() {
+  const { auth, firestore } = initializeFirebase();
+  const user = auth.currentUser;
+  if (!user) {
+    return null;
+  }
+  return { user, firestore };
+}
+
+
 export async function saveNote(data: FormData) {
+  const app = await getAuthenticatedAppForUser();
+  if (!app) {
+    throw new Error('You must be logged in to save a note.');
+  }
+  const { user, firestore } = app;
+
   const { noteId, title, content } = {
     noteId: data.get('noteId') as string | null,
     title: data.get('title') as string,
     content: data.get('content') as string,
   };
 
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('You must be logged in to save a note.');
-  }
-
   if (noteId && noteId !== 'new') {
     // Update existing note
-    const noteRef = doc(firestore, 'notes', noteId);
+    const noteRef = doc(firestore, `users/${user.uid}/notes`, noteId);
     const noteSnap = await getDoc(noteRef);
-    if (!noteSnap.exists() || noteSnap.data().userId !== user.uid) {
+    if (!noteSnap.exists()) {
         throw new Error("Note not found or you don't have permission to edit it.");
     }
     await updateDoc(noteRef, {
@@ -36,7 +47,7 @@ export async function saveNote(data: FormData) {
     return { noteId };
   } else {
     // Create new note
-    const docRef = await addDoc(collection(firestore, 'notes'), {
+    const docRef = await addDoc(collection(firestore, `users/${user.uid}/notes`), {
       title,
       content,
       userId: user.uid,
@@ -49,15 +60,16 @@ export async function saveNote(data: FormData) {
 }
 
 export async function deleteNote(noteId: string) {
-    const user = auth.currentUser;
-    if (!user) {
+    const app = await getAuthenticatedAppForUser();
+    if (!app) {
       throw new Error('You must be logged in to delete a note.');
     }
+    const { user, firestore } = app;
   
-    const noteRef = doc(firestore, 'notes', noteId);
+    const noteRef = doc(firestore, `users/${user.uid}/notes`, noteId);
     const noteSnap = await getDoc(noteRef);
 
-    if (!noteSnap.exists() || noteSnap.data().userId !== user.uid) {
+    if (!noteSnap.exists()) {
         throw new Error("Note not found or you don't have permission to delete it.");
     }
 

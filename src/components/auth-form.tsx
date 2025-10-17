@@ -6,11 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  getIdToken,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+  initiateEmailSignUp,
+  initiateEmailSignIn,
+} from '@/firebase/non-blocking-login';
+import { useAuth } from '@/firebase';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +41,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -54,17 +54,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
-      const userCredential =
-        mode === 'login'
-          ? await signInWithEmailAndPassword(auth, values.email, values.password)
-          : await createUserWithEmailAndPassword(auth, values.email, values.password);
-
-      const token = await getIdToken(userCredential.user);
-      await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
+      if (mode === 'login') {
+        await initiateEmailSignIn(auth, values.email, values.password);
+      } else {
+        await initiateEmailSignUp(auth, values.email, values.password);
+      }
       
       const redirectUrl = searchParams.get('redirect') || '/dashboard';
       router.push(redirectUrl);

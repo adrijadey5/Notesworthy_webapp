@@ -1,8 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { User } from 'firebase/auth';
+import { useUser } from '@/firebase'; 
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface AuthContextType {
@@ -16,19 +16,9 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isUserLoading } = useUser();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) {
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Skeleton className="h-16 w-16 rounded-full" />
@@ -37,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading: isUserLoading }}>
       {children}
     </AuthContext.Provider>
   );

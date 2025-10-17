@@ -3,16 +3,16 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isPublicPath = pathname === '/login' || pathname === '/signup' || pathname === '/';
+  const token = request.cookies.get('firebaseIdToken')?.value;
 
-  const publicPaths = ['/', '/login', '/signup'];
-  
-  if (publicPaths.includes(pathname)) {
-    return NextResponse.next();
+  // If it's a public path and user is logged in, redirect to dashboard
+  if (isPublicPath && token) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  const token = request.cookies.get('firebaseIdToken');
-
-  if (!token) {
+  // If it's a protected path and user is not logged in, redirect to login
+  if (!isPublicPath && !token) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);

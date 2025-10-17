@@ -1,8 +1,7 @@
 'use client';
 
 import { Note } from '@/lib/types';
-import { useForm, useFormState } from 'react-hook-form';
-import { saveNote, deleteNote, getSummary } from '@/lib/actions';
+import { useForm } from 'react-hook-form';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -22,18 +21,38 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import React, { useState, useRef, useEffect, useTransition } from 'react';
+import React, { useState, useRef, useEffect, useTransition, useMemo } from 'react';
+import { getSummary } from '@/lib/actions';
+import {
+  useFirestore,
+  useUser,
+  setDocumentNonBlocking,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 
 export function NoteEditor({ note }: { note: Note }) {
   const router = useRouter();
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
-  const { register, handleSubmit, formState, control } = useForm({
-    defaultValues: {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const { register, handleSubmit, formState, reset } = useForm({
+    defaultValues: useMemo(() => ({
       title: note.title,
       content: note.content,
-    },
+    }), [note]),
   });
+
+  useEffect(() => {
+    reset({
+      title: note.title,
+      content: note.content
+    });
+  }, [note, reset]);
+
+
   const { isSubmitting, isDirty } = formState;
 
   const [selection, setSelection] = useState<DOMRect | null>(null);
@@ -71,24 +90,54 @@ export function NoteEditor({ note }: { note: Note }) {
   };
 
   async function onSave(data: { title: string; content: string }) {
-    const formData = new FormData();
-    formData.append('noteId', note.id);
-    formData.append('title', data.title);
-    formData.append('content', data.content);
+     if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Error Saving Note',
+        description: 'You must be logged in to save a note.',
+      });
+      return;
+    }
+    
+    const isNewNote = note.id === 'new';
 
     try {
-      await saveNote(formData);
-      toast({
-        title: 'Note Saved',
-        description: 'Your changes have been saved successfully.',
-      });
-      if (note.id === 'new') {
-        // router is updated via redirect in action
+      if (isNewNote) {
+        const notesCollection = collection(firestore, `users/${user.uid}/notes`);
+        const newNoteData = {
+            ...data,
+            userId: user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+        const docRefPromise = addDocumentNonBlocking(notesCollection, newNoteData);
+        toast({
+          title: 'Note Created',
+          description: 'Your new note has been saved.',
+        });
+        // We can optimistically navigate, and then get the real ID
+        router.push(`/dashboard`);
+        const docRef = await docRefPromise;
+        if(docRef) {
+          router.push(`/notes/${docRef.id}`);
+        }
+
       } else {
-        router.refresh();
+        const noteRef = doc(firestore, `users/${user.uid}/notes`, note.id);
+        const updatedData = {
+          ...data,
+          updatedAt: serverTimestamp(),
+        };
+        setDocumentNonBlocking(noteRef, updatedData, { merge: true });
+        toast({
+          title: 'Note Saved',
+          description: 'Your changes have been saved successfully.',
+        });
       }
+      router.refresh();
+      
     } catch (error) {
-      toast({
+       toast({
         variant: 'destructive',
         title: 'Error Saving Note',
         description: 'Could not save your note. Please try again.',
@@ -96,16 +145,26 @@ export function NoteEditor({ note }: { note: Note }) {
     }
   }
 
+  function onDelete() {
+    if (!user || !firestore || note.id === 'new') return;
+    const noteRef = doc(firestore, `users/${user.uid}/notes`, note.id);
+    deleteDocumentNonBlocking(noteRef);
+    toast({
+      title: 'Note Deleted',
+      description: 'Your note has been permanently deleted.',
+    });
+    router.push('/dashboard');
+  }
+
   return (
     <>
       <form
-        ref={formRef}
         onSubmit={handleSubmit(onSave)}
         onMouseUp={handleSelection}
         className="space-y-6 h-full flex flex-col"
       >
         <div className="flex items-center justify-between gap-4">
-           <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
+           <Button type="button" variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
               <ArrowLeft />
            </Button>
           <div className="flex-1">
@@ -117,7 +176,7 @@ export function NoteEditor({ note }: { note: Note }) {
             {note.id !== 'new' && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="icon">
+                  <Button type="button" variant="destructive" size="icon">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
@@ -130,7 +189,7 @@ export function NoteEditor({ note }: { note: Note }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteNote(note.id)}>Delete</AlertDialogAction>
+                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -146,7 +205,6 @@ export function NoteEditor({ note }: { note: Note }) {
           </div>
         </div>
 
-        <input type="hidden" {...register('noteId')} value={note.id} />
         <Input
           {...register('title')}
           placeholder="Note title"

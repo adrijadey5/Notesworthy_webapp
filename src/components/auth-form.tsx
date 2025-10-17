@@ -6,9 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  initiateEmailSignUp,
-  initiateEmailSignIn,
-} from '@/firebase/non-blocking-login';
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 import { useAuth } from '@/firebase';
 
 import { Button } from '@/components/ui/button';
@@ -55,13 +55,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setLoading(true);
     try {
       if (mode === 'login') {
-        await initiateEmailSignIn(auth, values.email, values.password);
+        await signInWithEmailAndPassword(auth, values.email, values.password);
       } else {
-        await initiateEmailSignUp(auth, values.email, values.password);
+        await createUserWithEmailAndPassword(auth, values.email, values.password);
       }
       
-      const redirectUrl = searchParams.get('redirect') || '/dashboard';
-      router.push(redirectUrl);
+      // The redirect is handled by the layout now, so we can just wait for the user state to update
+      // and the layout will do its job.
+      // router.push(redirectUrl);
 
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
@@ -79,10 +80,20 @@ export default function AuthForm({ mode }: AuthFormProps) {
               ),
             });
         } else {
+             let description = 'An unexpected error occurred.';
+             switch (error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    description = 'Invalid login credentials. Please check your email and password.';
+                    break;
+                case 'auth/invalid-email':
+                    description = 'The email address is not valid.';
+                    break;
+             }
             toast({
                 variant: 'destructive',
                 title: 'Authentication Failed',
-                description: error.message || 'An unexpected error occurred.',
+                description: description,
             });
         }
     } finally {

@@ -5,21 +5,22 @@ import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { NoteEditor } from '@/components/note-editor';
 import type { Note } from '@/lib/types';
 import NoteLoading from '../loading';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 
 
 export default function NotePage({ params }: { params: { noteId: string } }) {
+  const resolvedParams = use(Promise.resolve(params));
   const { user } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
 
-  const isNewNote = params.noteId === 'new';
+  const isNewNote = resolvedParams.noteId === 'new';
 
   const noteRef = useMemoFirebase(() => {
     if (isNewNote || !user) return null;
-    return doc(firestore, `users/${user.uid}/notes`, params.noteId);
-  }, [firestore, user, params.noteId, isNewNote]);
+    return doc(firestore, `users/${user.uid}/notes`, resolvedParams.noteId);
+  }, [firestore, user, resolvedParams.noteId, isNewNote]);
 
   const { data: note, isLoading, error } = useDoc<Note>(noteRef);
 

@@ -28,6 +28,8 @@ DEPLOYMENT LINK: https://notesworthy-webapp.vercel.app/
 <img width="1895" height="936" alt="Screenshot 2025-10-17 232835" src="https://github.com/user-attachments/assets/3f99fc36-f15a-493d-97f4-aa9182e632d8" />
 <img width="1910" height="924" alt="Screenshot 2025-10-17 232820" src="https://github.com/user-attachments/assets/505b8bba-d193-4b78-b9c6-4387ef8ed79f" />
 <img width="1897" height="910" alt="image" src="https://github.com/user-attachments/assets/99fcb191-a2e7-4d03-9a13-794728a7f288" />
+<img width="1904" height="922" alt="Screenshot 2025-10-17 232800" src="https://github.com/user-attachments/assets/6794786d-5df2-4c6c-9055-549a45cac170" />
+
 screenshots of web app
 
 STEPS:
